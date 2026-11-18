@@ -374,6 +374,12 @@ def update_text(info):
 def do_update(progress=gr.Progress()):
     if M.BUSY.locked():
         raise gr.Error("Erst warten, bis der Song fertig ist.")
+    # Vor dem Update alle von MusicBox gestarteten KIs beenden – sonst laufen sie verwaist weiter
+    for fn in (T.BERATER.stop, L.stop_all, M.stop):
+        try:
+            fn()
+        except Exception:
+            log.exception("KI vor dem Update nicht beendet")
     try:
         v = U.install(progress=lambda f, m: progress(f, desc=m))
     except Exception as e:
