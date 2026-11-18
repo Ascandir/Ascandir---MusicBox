@@ -74,6 +74,6 @@ def install(progress=lambda f, m: None):
                 progress(done / total, f"Update wird geladen … {done / 1e6:.0f} von {total / 1e6:.0f} MB")
     if sys.platform == "win32":
         subprocess.Popen([str(dest), "/update"], close_fds=True,
-                         creationflags=0x00000008 | 0x00000200)  # DETACHED | NEW_PROCESS_GROUP
+                         creationflags=0x00000008 | 0x00000200 | 0x01000000)  # DETACHED | NEW_PROCESS_GROUP | BREAKAWAY_FROM_JOB
     threading.Timer(1.5, lambda: os._exit(0)).start()
     return info["version"]

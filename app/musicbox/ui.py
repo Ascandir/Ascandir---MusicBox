@@ -429,6 +429,26 @@ def do_quit():
     return "👋 MusicBox wird beendet …"
 
 
+_LAST_LOAD = [0.0]
+
+
+def _on_load():
+    _LAST_LOAD[0] = time.time()
+
+
+def _on_unload():
+    """Nur ohne eigenes Fenster (Browser-Notlösung): Tab zu → nach 20 s alles beenden, außer er wurde neu geladen."""
+    if WINDOW is not None:
+        return
+    t = time.time()
+
+    def check():
+        if _LAST_LOAD[0] < t and not M.BUSY.locked():
+            log.info("Browser-Tab geschlossen – MusicBox wird beendet")
+            shutdown()
+    threading.Timer(20, check).start()
+
+
 def _ticker():
     while True:
         time.sleep(30)
@@ -624,6 +644,8 @@ def build():
             up = update_text(info) if info.get("neu") else ("", gr.update(visible=False))
             return [*up, *to_values(load_draft()), gr.update(visible=load_draft()["gesang"] != S.INSTRUMENTAL)]
         app.load(startup, None, [upd_md, upd_go, *CONTROLS, lyr_box])
+        app.load(_on_load, None, None)
+        app.unload(_on_unload)
 
         gesang.change(lambda g: gr.update(visible=g != S.INSTRUMENTAL), gesang, lyr_box)
         lyr_btn.click(do_lyrics, CONTROLS, [*CONTROLS, lyr_md], concurrency_limit=1, show_progress_on=[lyr_md])

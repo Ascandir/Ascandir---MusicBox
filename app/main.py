@@ -18,6 +18,13 @@ if sys.stdout is None or sys.stderr is None:
 from musicbox import debuglog  # noqa: E402
 debuglog.setup()
 
+# Alle Unterprozesse (ComfyUI, Strata …) enden automatisch mit diesem Python-Prozess – auch bei einem Absturz
+try:
+    from musicbox import jobobject  # noqa: E402
+    debuglog.log.info("Prozess-Kopplung (Job): %s", "aktiv" if jobobject.enable() else "nicht verfügbar")
+except Exception as _e:
+    debuglog.log.info("Prozess-Kopplung (Job) fehlgeschlagen: %s", _e)
+
 
 def einrichten():
     """Vom Setup aufgerufen: Musik-KI (ComfyUI) und Modelle laden. Gibt Fortschritt zeilenweise aus."""
