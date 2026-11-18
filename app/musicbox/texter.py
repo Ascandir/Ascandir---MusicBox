@@ -56,7 +56,8 @@ Regeln:
 - Abschnitts-Marken immer auf Englisch in eckigen Klammern auf eigener Zeile, z. B. [Verse 1], [Chorus], [Bridge].
 - Kurze, singbare Zeilen. Keine Regieanweisungen, keine Akkorde, keine Erklärungen.
 - Zusätzlich: eine englische Stilbeschreibung für eine Musik-KI (kommagetrennte Stichworte: Genre, Stimmung,
-  Tempo-Gefühl, Gesangsstil, Produktion – höchstens 30 Wörter) und ein kurzer Songtitel.
+  Tempo-Gefühl, Klangfarbe, Produktion – höchstens 30 Wörter) und ein kurzer Songtitel.
+  WICHTIG: In der Stilbeschreibung KEIN Geschlecht und keine Stimme nennen (kein male/female/choir) – das regelt die App.
 
 Antworte GENAU in diesem Format:
 TITEL: <Titel>
@@ -117,7 +118,8 @@ REGLER, DIE DU SETZEN KANNST:
 - titel: Songtitel
 - stil: Musikrichtung & Feeling auf Deutsch, so wie der Nutzer es lesen soll
 - stil_en: dieselbe Beschreibung auf Englisch als kommagetrennte Stichworte für die Musik-KI
-  (Genre, Subgenre, Stimmung, Tempo-Gefühl, Gesangsstil, Produktion/Klang). Setz stil_en IMMER mit, wenn du stil änderst.
+  (Genre, Subgenre, Stimmung, Tempo-Gefühl, Produktion/Klang). Setz stil_en IMMER mit, wenn du stil änderst.
+  Die Stimme (Mann/Frau/Chor) NICHT in stil/stil_en schreiben – dafür gibt es den Regler "gesang".
 - instrumente: Liste, NUR aus: {inst}
 - gesang: eine von: {", ".join(S.GESANG)}
 - sprache (des Songtexts): eine von: {", ".join(M.SPRACHEN)}

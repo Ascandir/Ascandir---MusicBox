@@ -39,12 +39,18 @@ ALLE_INSTRUMENTE = {tag: label for cat in INSTRUMENTE.values() for label, tag in
 LABEL_ZU_TAG = {label.lower(): tag for tag, label in ALLE_INSTRUMENTE.items()}
 
 GESANG = {
-    "Kein Gesang (instrumental)": "instrumental",
-    "Männlicher Gesang": "male vocals",
-    "Weiblicher Gesang": "female vocals",
-    "Duett (Mann & Frau)": "male and female vocals, duet",
-    "Chorgesang": "choir vocals",
-    "Egal – die KI entscheidet": "vocals",
+    "Kein Gesang (instrumental)": "instrumental, no vocals",
+    "Männlicher Gesang": "male vocal, male singer, deep male voice",
+    "Weiblicher Gesang": "female vocal, female singer",
+    "Duett (Mann & Frau)": "duet, male and female vocals",
+    "Chorgesang": "choir, choral vocals, group vocals",
+    "Egal – die KI entscheidet": "",
+}
+# Stimme in den Abschnitts-Marken des Songtexts, z. B. [Verse 1 - male vocal]
+GESANG_MARKE = {
+    "Männlicher Gesang": "male vocal",
+    "Weiblicher Gesang": "female vocal",
+    "Chorgesang": "choir",
 }
 INSTRUMENTAL = "Kein Gesang (instrumental)"
 
@@ -73,17 +79,62 @@ def mit_gesang(song):
     return song.get("gesang") != INSTRUMENTAL
 
 
+_VOCAL_RE = re.compile(
+    r"(?i)\b(?:soft |breathy |deep |powerful |gentle |raspy |soulful |gravelly |high |low |clear |warm )*"
+    r"(?:fe)?male\s+(?:lead\s+)?(?:vocals?|voices?|singers?|vocalists?)\b"
+    r"|\b(?:wo)?m[ae]n'?s?\s+(?:vocals?|voices?)\b|\b(?:girl|boy)\s+(?:vocals?|voices?)\b"
+    r"|\b(?:choir|choral|group|gang)\s+vocals?\b|\bduet\b|\binstrumental\b|\bno vocals\b"
+    r"|\b(?:männlich|weiblich)e[rn]?\s+(?:gesang|stimmen?)\b|\b(?:sänger|sängerin)\b")
+
+
+def strip_vocals(text):
+    """Angaben zur Stimme aus einer Stilbeschreibung entfernen – die Stimme bestimmt allein die Gesangsauswahl."""
+    t = _VOCAL_RE.sub("", text or "")
+    t = re.sub(r"\s*,\s*(,\s*)+", ", ", t)
+    return re.sub(r"\s{2,}", " ", t).strip(" ,.;")
+
+
 def tags(song):
-    """Beschreibung (englisch) für die Musik-KI."""
+    """Beschreibung (englisch) für die Musik-KI. Die Stimme steht vorne, damit sie Gewicht hat."""
     teile = []
-    stil = (song.get("stil_en") or "").strip() or (song.get("stil") or "").strip()
+    stimme = GESANG.get(song.get("gesang"), "")
+    if stimme:
+        teile.append(stimme)
+    stil = strip_vocals((song.get("stil_en") or "").strip() or (song.get("stil") or "").strip())
     if stil:
-        teile.append(stil.rstrip(", ."))
+        teile.append(stil)
     inst = [t for t in song.get("instrumente") or [] if t]
     if inst:
         teile.append(", ".join(inst))
-    teile.append(GESANG.get(song.get("gesang"), "vocals"))
     return ", ".join(teile)
+
+
+_NO_VOCAL_SECTION = re.compile(r"(?i)^(intro|outro|instrumental|break|solo|interlude|inst)")
+
+
+def mark_sections(text, gesang):
+    """[Verse 1] → [Verse 1 - male vocal]; vorhandene Stimm-Angaben in den Marken werden ersetzt.
+    Duett: Strophen abwechselnd Mann/Frau, Refrain & Rest gemeinsam."""
+    if gesang not in GESANG_MARKE and gesang != "Duett (Mann & Frau)":
+        return text
+    verse = [0]
+
+    def fix(m):
+        parts = [p.strip() for p in m.group(1).split(" - ")]
+        name = parts[0]
+        rest = [p for p in parts[1:] if p and not re.search(r"(?i)\b(vocals?|voices?|choir|singers?|duet)\b", p)]
+        if _NO_VOCAL_SECTION.match(name):
+            return "[" + " - ".join([name] + rest) + "]"
+        if gesang == "Duett (Mann & Frau)":
+            if re.match(r"(?i)verse|strophe", name):
+                verse[0] += 1
+                marke = "male vocal" if verse[0] % 2 else "female vocal"
+            else:
+                marke = "male and female vocals"
+        else:
+            marke = GESANG_MARKE[gesang]
+        return "[" + " - ".join([name] + rest + [marke]) + "]"
+    return re.sub(r"(?m)^[ \t]*\[([^\]\n]+)\][ \t]*$", fix, text)
 
 
 def lyrics(song):
@@ -92,7 +143,9 @@ def lyrics(song):
     txt = (song.get("songtext") or "").strip()
     if not txt:
         txt = (song.get("idee") or "").strip()
-    return txt or "[Instrumental]"
+    if not txt:
+        return "[Instrumental]"
+    return mark_sections(txt, song.get("gesang"))
 
 
 def clamp(song):
