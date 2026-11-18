@@ -168,7 +168,11 @@ def clamp(song):
         s["varianten"] = 1
     if s["qualitaet"] not in QUALITAET:
         q = str(s["qualitaet"]).lower()
-        s["qualitaet"] = next((k for k in QUALITAET if q and (q in k.lower() or QUALITAET[k]["modell"] == q)), Q_SCHNELL)
+        if "sft" in q:                                   # alte Bezeichnung aus 0.1.6/0.1.7
+            s["qualitaet"] = list(QUALITAET)[-1]
+        else:
+            s["qualitaet"] = next((k for k in QUALITAET if q and (q in k.lower() or QUALITAET[k]["modell"] == q)),
+                                  Q_SCHNELL)
     try:
         s["schritte"] = max(20, min(100, int(s["schritte"])))
     except Exception:

@@ -58,10 +58,12 @@ for _k, _f in FILES.items():
 QUALITAET = {
     "⚡ Schnell (Turbo)":            {"modell": "turbo", "steps": 8, "cfg": 1.0, "top_p": 0.9, "planer": None},
     "✨ Besser (XL-Turbo)":          {"modell": "xl-turbo", "steps": 8, "cfg": 1.0, "top_p": 0.9, "planer": None},
-    "💎 Beste (XL-SFT, dauert deutlich länger)": {"modell": "xl-sft", "steps": 50, "cfg": 7.0, "top_p": 1.0,
-                                                  "planer": "4b"},
+    "💎 Beste (XL-Turbo + großer Song-Planer)": {"modell": "xl-turbo", "steps": 8, "cfg": 1.0, "top_p": 0.9,
+                                                 "planer": "4b"},
+    "🧪 Experimentell (XL-SFT, viele Rechenschritte)": {"modell": "xl-sft", "steps": 50, "cfg": 7.0, "top_p": 1.0,
+                                                        "planer": "4b"},
 }
-Q_SCHNELL, Q_BESSER, Q_BESTE = list(QUALITAET)
+Q_SCHNELL, Q_BESSER, Q_BESTE, Q_EXPERIMENT = list(QUALITAET)
 PLANER_MODELLE = {
     "Normal (1,7 Mrd.) – empfohlen für 16 GB": "1.7b",
     "Stark (4 Mrd.) – braucht mehr Grafikspeicher": "4b",
@@ -433,12 +435,14 @@ def start(progress=lambda f, m: None, qualitaet=None):
     global _proc, _started
     with _lock:
         touch()
-        if running():
-            return
+        # Fehlende Modelle IMMER zuerst laden – auch wenn die Musik-KI schon läuft
+        # (ComfyUI erkennt neue Dateien im Modell-Ordner von selbst)
         root = comfy_root()
         if root is None or missing_files(qualitaet=qualitaet):
             install(progress, qualitaet=qualitaet)
             root = comfy_root()
+        if running():
+            return
         install_nodes(root)
         cmd, env = launch_cmd(root)
         log.info("Musik-KI-Start: %s", cmd)

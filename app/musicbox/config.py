@@ -30,7 +30,8 @@ DEFAULT_SETTINGS = {
     "gpu_modus": "Ausgewogen",                # Schonend | Ausgewogen | Volle Leistung
     "planer_modell": "1.7b",                  # 0.6b | 1.7b | 4b
     "audio_codes": True,                      # Song-Planer (LM) einschalten – bessere Qualität
-    "musik_leerlauf_min": 10,                 # Musik-KI nach so vielen Minuten Ruhe beenden
+    "musik_nach_song_beenden": True,          # Musik-KI direkt nach dem Song beenden (Grafikkarte frei)
+    "musik_leerlauf_min": 10,                 # sonst: nach so vielen Minuten Ruhe beenden
     # Allgemein
     "design": "Dunkel",
     "update_repo": "Ascandir/Ascandir---MusicBox",

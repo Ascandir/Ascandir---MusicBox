@@ -108,7 +108,7 @@ def do_generate(*vals, progress=gr.Progress()):
     if not (song["stil"].strip() or song["stil_en"].strip() or song["instrumente"]):
         raise gr.Error("Beschreib kurz die Musikrichtung oder wähl ein paar Instrumente.")
     seed = S.random_seed() if zufall or not seed else int(seed)
-    if song["qualitaet"] == M.Q_BESTE:
+    if song["qualitaet"] == M.Q_EXPERIMENT:
         log.info("Beste Qualität: XL-SFT mit %s Schritten", song["schritte"])
     stopped, note = _free_gpu_for_music()
     if stopped:
@@ -126,8 +126,12 @@ def do_generate(*vals, progress=gr.Progress()):
         files = M.generate(p, prog)
     except Exception as e:
         log.exception("Song-Erzeugung fehlgeschlagen")
+        if C.settings().get("musik_nach_song_beenden", True):
+            M.stop()
         raise gr.Error(f"{e}", duration=None)
     sec = int(time.time() - t0)
+    if C.settings().get("musik_nach_song_beenden", True) and M.stop():
+        note += "\n\n⏹ Die Musik-KI wurde beendet – die Grafikkarte ist wieder frei."
     md = (f"✅ **Fertig** in {sec // 60}:{sec % 60:02d} min – gespeichert im Songs-Ordner. "
           f"Seed: `{seed}` (für dieselbe Variante nochmal: „Zufällig“ aus und Seed eintragen).{note}")
     ups = []
@@ -213,7 +217,7 @@ def show_song(path):
           f"**Länge:** {d // 60}:{d % 60:02d} · **Seed:** `{m.get('seed')}`  \n"
           f"*Erstellt {m.get('erstellt', '?')} in {m.get('dauer_erzeugung_s', '?')} s "
           f"({m.get('qualitaet') or m.get('musik_modell', '?')}"
-          f"{', ' + str(m.get('schritte')) + ' Schritte' if m.get('qualitaet') == M.Q_BESTE else ''}).*")
+          f"{', ' + str(m.get('schritte')) + ' Schritte' if m.get('qualitaet') == M.Q_EXPERIMENT else ''}).*")
     if m.get("songtext") and m.get("gesang") != S.INSTRUMENTAL:
         md += "\n\n**Songtext:**\n\n" + m["songtext"].replace("\n", "  \n")
     return gr.update(value=path), md
@@ -299,13 +303,14 @@ def do_music_stop():
     return musik_status()
 
 
-def save_settings(planer, codes, gpu_modus, karte, musik_idle, comfy_ordner,
+def save_settings(planer, codes, gpu_modus, karte, mafter, musik_idle, comfy_ordner,
                   ki_mode, strata_cmd, strata_stop, strata_wait, berater_idle, url, model,
                   songs_ordner, design, upd_start):
     old = C.settings()
     st = C.update_settings(
         planer_modell=M.PLANER_MODELLE.get(planer, "1.7b"),
-        audio_codes=bool(codes), gpu_modus=gpu_modus, grafikkarte=karte, musik_leerlauf_min=int(musik_idle),
+        audio_codes=bool(codes), gpu_modus=gpu_modus, grafikkarte=karte, musik_nach_song_beenden=bool(mafter),
+        musik_leerlauf_min=int(musik_idle),
         comfy_ordner=(comfy_ordner or "").strip().strip('"'), ki_modus=ki_mode, strata_befehl=(strata_cmd or "").strip(),
         strata_beenden=bool(strata_stop), strata_wartezeit=int(strata_wait) * 60, berater_leerlauf_min=int(berater_idle),
         llm_url=(url or old["llm_url"]).strip(), llm_model=(model or "").strip(),
@@ -528,11 +533,11 @@ def build():
                         varianten = gr.Slider(1, MAX_VARIANTEN, value=vals[11 + len(CATS)], step=1,
                                               label="Varianten", info="Mehrere Versionen nacheinander (jede mit anderem Seed)")
                         qualitaet = gr.Radio(list(M.QUALITAET), value=vals[12 + len(CATS)], label="💎 Qualität",
-                                             info="Mehr Qualität = mehr Rechenzeit. Beim ersten Mal wird das jeweilige "
-                                                  "Modell nachgeladen (je ca. 9,5 GB, „Beste“ zusätzlich der starke Song-Planer ca. 8 GB).")
+                                             info="Beim ersten Mal wird das jeweilige Modell nachgeladen (XL ca. 9,5 GB, großer Song-Planer ca. 8 GB). "
+                                                  "„Beste“ plant den Song gründlicher und braucht dafür länger.")
                         schritte = gr.Slider(20, 100, value=vals[13 + len(CATS)], step=5, label="Feinschliff (Rechenschritte)",
-                                             info="Nur bei „Beste“: 50 = empfohlen. Mehr Schritte = feinere Details, dauert länger.",
-                                             visible=draft["qualitaet"] == M.Q_BESTE)
+                                             info="Nur bei „Experimentell“: 50 = empfohlen. Mehr Schritte = feinere Details, dauert länger.",
+                                             visible=draft["qualitaet"] == M.Q_EXPERIMENT)
                         with gr.Row():
                             zufall = gr.Checkbox(value=True, label="Zufälliger Seed", scale=1)
                             seed = gr.Number(value=0, precision=0, label="Seed", scale=2)
@@ -589,7 +594,7 @@ def build():
                 with gr.Row():
                     s_planer = gr.Radio(list(M.PLANER_MODELLE), value=rev_p.get(st.get("planer_modell"), list(M.PLANER_MODELLE)[0]),
                                         label="Song-Planer (für Schnell & Besser)",
-                                        info="Plant Aufbau, Melodie und Gesang, bevor die Musik entsteht. „Beste“ nimmt immer den starken.")
+                                        info="Plant Aufbau, Melodie und Gesang, bevor die Musik entsteht. „Beste“ und „Experimentell“ nehmen immer den starken.")
                 s_codes = gr.Checkbox(value=st.get("audio_codes", True),
                                       label="Song-Planer benutzen (langsamer, aber deutlich bessere Songs – empfohlen)")
                 with gr.Row():
@@ -597,8 +602,11 @@ def build():
                                      info="Schonend, falls der AMD-Treiber abstürzt oder der Speicher nicht reicht")
                     s_karte = gr.Radio(["Automatisch", "AMD", "NVIDIA"], value=st.get("grafikkarte", "Automatisch"),
                                        label="Grafikkarte", info="Welche ComfyUI-Version geladen wird")
+                s_mafter = gr.Checkbox(value=st.get("musik_nach_song_beenden", True),
+                                       label="Musik-KI direkt nach jedem Song beenden (empfohlen – gibt die Grafikkarte frei; "
+                                             "der nächste Song startet dafür etwas langsamer)")
                 s_midle = gr.Slider(0, 60, value=st.get("musik_leerlauf_min", 10), step=1,
-                                    label="Musik-KI nach so vielen Minuten ohne Benutzung beenden (0 = nie)")
+                                    label="Falls nicht direkt beendet: nach so vielen Minuten ohne Benutzung beenden (0 = nie)")
                 s_comfy = gr.Textbox(label="Eigener ComfyUI-Ordner (leer = eingebaute Installation)",
                                      value=st.get("comfy_ordner", ""),
                                      placeholder=r"z. B. D:\KI\ComfyUI_windows_portable (Ordner mit python_embeded)")
@@ -653,13 +661,13 @@ def build():
             up = update_text(info) if info.get("neu") else ("", gr.update(visible=False))
             d = load_draft()
             return [*up, *to_values(d), gr.update(visible=d["gesang"] != S.INSTRUMENTAL),
-                    gr.update(visible=d["qualitaet"] == M.Q_BESTE)]
+                    gr.update(visible=d["qualitaet"] == M.Q_EXPERIMENT)]
         app.load(startup, None, [upd_md, upd_go, *CONTROLS, lyr_box, schritte])
         app.load(_on_load, None, None)
         app.unload(_on_unload)
 
         gesang.change(lambda g: gr.update(visible=g != S.INSTRUMENTAL), gesang, lyr_box)
-        qualitaet.change(lambda q: gr.update(visible=q == M.Q_BESTE), qualitaet, schritte)
+        qualitaet.change(lambda q: gr.update(visible=q == M.Q_EXPERIMENT), qualitaet, schritte)
         lyr_btn.click(do_lyrics, CONTROLS, [*CONTROLS, lyr_md], concurrency_limit=1, show_progress_on=[lyr_md])
         ev_gen = gen_btn.click(do_generate, [*CONTROLS, zufall, seed], [gen_md, seed, *outs],
                                concurrency_limit=1, show_progress_on=[gen_md])
@@ -685,7 +693,7 @@ def build():
         inst_btn.click(do_install_music, None, mus_md, concurrency_limit=1)
         mstop_btn.click(do_music_stop, None, mus_md)
         mref_btn.click(musik_status, None, mus_md)
-        s_save.click(save_settings, [s_planer, s_codes, s_gpu, s_karte, s_midle, s_comfy, s_kimode, s_scmd,
+        s_save.click(save_settings, [s_planer, s_codes, s_gpu, s_karte, s_mafter, s_midle, s_comfy, s_kimode, s_scmd,
                                      s_sstop, s_swait, s_bidle, s_url, s_model, s_songs, s_design, s_upd],
                      [s_md, mus_md, ki_md])
         s_kimode.change(lambda m: (C.update_settings(ki_modus=m), ki_status())[1], s_kimode, ki_md)
