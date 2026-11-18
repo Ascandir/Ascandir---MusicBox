@@ -118,6 +118,33 @@ def strata_key(preset):
     return toks[-1] if toks else ""
 
 
+def strata_stop(preset=""):
+    """`strata launch --stop` (mit Preset, sonst allgemein)."""
+    rc, out = 1, ""
+    if preset:
+        rc, out = run_strata(["launch", "--stop", "--preset", preset], timeout=90)
+        log.info("strata launch --stop --preset %s → Code %s: %s", preset, rc, out.strip()[:300])
+    if rc != 0:
+        rc, out = run_strata(["launch", "--stop"], timeout=90)
+        log.info("strata launch --stop → Code %s: %s", rc, out.strip()[:300])
+    return rc, out
+
+
+def strata_cleanup(preset, url):
+    """Ein hängengebliebenes Strata (\"already has a live managed runtime\") aufräumen."""
+    log.info("Strata aufräumen (Preset %s)", preset)
+    strata_stop(preset)
+    t0 = time.time()
+    while time.time() - t0 < 30 and (_listener_pids(_port(url)) or api_up(url, timeout=1)):
+        time.sleep(1)
+    for pid in _listener_pids(_port(url)):           # Reste am Port hart beenden
+        _kill_tree(pid)
+    time.sleep(3)                                     # Grafikspeicher freigeben lassen
+
+
+STALE = ("live managed runtime", "already running", "already has a live")
+
+
 def strata_status_urls():
     import re
     rc, out = run_strata(["launch", "--status"], timeout=20)
@@ -134,6 +161,15 @@ def _log_tail(n=12):
     try:
         lines = LOG.read_text(encoding="utf-8", errors="replace").splitlines()
         return "\n".join(lines[-n:])
+    except Exception:
+        return ""
+
+
+def _this_run_log():
+    """Protokoll nur vom letzten Start."""
+    try:
+        txt = LOG.read_text(encoding="utf-8", errors="replace")
+        return txt[txt.rfind("\n=== "):]
     except Exception:
         return ""
 
@@ -452,8 +488,8 @@ class KI:
                 rc = self.proc.poll() if self.proc else None
                 log.info("… noch keine Antwort nach %.0f s (Prozess %s)", time.time() - t0,
                          "läuft" if rc is None else f"beendet mit Code {rc}")
-            if self.proc is not None and self.proc.poll() is not None and self.proc.returncode not in (0, None) \
-                    and time.time() - t0 > 5 and not api_up(url):
+            if self.proc is not None and self.proc.poll() is not None and time.time() - t0 > 5 and not api_up(url) \
+                    and (self.proc.returncode not in (0, None) or any(k in _this_run_log().lower() for k in STALE)):
                 raise RuntimeError(f"{what} hat sich beendet, bevor sie bereit war.\n\nLetzte Meldungen:\n{_log_tail()}")
             if self.mode == "Strata" and strata_cli() and int(time.time() - t0) % 15 < 3 and time.time() - t0 > 5:
                 urls, _ = strata_status_urls()
@@ -497,9 +533,25 @@ class KI:
             return self.url          # läuft schon – nicht anfassen
         log.info("Strata-Suche: %s", find_strata(force=True))
         cmd, kind = self._strata_cmd()
-        self.progress(0.01, f"Strata wird gestartet (Preset „{self.preset}“) …" if self.preset else "Strata wird gestartet …")
-        self._start(cmd, kind)
-        self._wait(self.url, int(st.get("strata_wartezeit", 900)), "Strata")
+        if kind == "cli" and _listener_pids(_port(self.url)):
+            strata_cleanup(self.preset, self.url)     # Port belegt, aber keine Antwort → Reste vom letzten Mal
+        for attempt in (1, 2):
+            self.progress(0.01, f"Strata wird gestartet (Preset „{self.preset}“) …" if self.preset else "Strata wird gestartet …")
+            self._start(cmd, kind)
+            try:
+                self._wait(self.url, int(st.get("strata_wartezeit", 900)), "Strata")
+                break
+            except RuntimeError as e:
+                if attempt == 1 and kind == "cli" and any(k in str(e).lower() for k in STALE):
+                    log.info("Strata meldet einen hängenden Lauf – wird aufgeräumt und neu gestartet")
+                    self.progress(0.02, "Strata hängt noch vom letzten Mal – wird aufgeräumt und neu gestartet …")
+                    if self.proc is not None and self.proc.poll() is None:
+                        _kill_tree(self.proc.pid)
+                    strata_cleanup(self.preset, self.url)
+                    continue
+                self.started = False
+                ACTIVE.discard(self)
+                raise
         self._fetch_key()
         return self.url
 
@@ -519,14 +571,21 @@ class KI:
             return
         self.progress(0.99, "KI wird beendet …")
         if self.mode == "Strata" and strata_cli():
-            args = ["launch", "--stop"] + (["--preset", self.preset] if self.preset else [])
-            rc, out = run_strata(args, timeout=90)
-            log.info("strata %s → Code %s: %s", " ".join(args), rc, out.strip()[:300])
-        if self.proc is not None:
+            strata_stop(self.preset)
+            # Strata räumt seinen „läuft“-Eintrag selbst auf – dafür Zeit lassen, statt sofort hart zu beenden
+            t0 = time.time()
+            while time.time() - t0 < 45:
+                cli_done = self.proc is None or self.proc.poll() is not None
+                if cli_done and not _listener_pids(_port(self.url or C.settings()["llm_url"])) and \
+                        not api_up(self.url or C.settings()["llm_url"], timeout=1):
+                    break
+                time.sleep(1)
+            log.info("Strata heruntergefahren nach %.0f s", time.time() - t0)
+        if self.proc is not None and self.proc.poll() is None:
             _kill_tree(self.proc.pid)
         # Hat die App die Engine abgekoppelt gestartet? Dann den Prozess am Port beenden.
         if self.url and WIN:
-            time.sleep(2)
+            time.sleep(1)
             if api_up(self.url, timeout=2):
                 for pid in _listener_pids(_port(self.url)):
                     _kill_tree(pid)

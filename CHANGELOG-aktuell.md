@@ -1,5 +1,4 @@
-## 🎵 MusicBox 0.1.2
+## 🎵 MusicBox 0.1.3
 
-- Python und alle gestarteten KIs (Musik-KI, Strata) enden jetzt garantiert mit MusicBox – auch bei einem Absturz oder Beenden über den Task-Manager
-- Ohne eigenes Programmfenster (Browser-Notlösung): Tab schließen beendet MusicBox nach 20 Sekunden
-- Beim Update werden Musik-KI und Strata vorher sauber beendet
+- **Strata startet wieder sauber**, wenn der Berater oder der Songtext-Knopf es zum zweiten Mal braucht: MusicBox lässt Strata beim Beenden jetzt in Ruhe herunterfahren, statt es sofort hart abzuschießen
+- Hängt Strata trotzdem noch vom letzten Mal („live managed runtime“), räumt MusicBox das automatisch auf und startet neu
