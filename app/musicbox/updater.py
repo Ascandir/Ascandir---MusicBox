@@ -38,7 +38,7 @@ def check(force=False):
             d = json.load(r)
     except urllib.error.HTTPError as e:
         if e.code == 404:
-            return {"fehler": "Noch keine Version veröffentlicht."}
+            return {"fehler": "Keine Version gefunden. Entweder wurde noch keine veröffentlicht, oder das GitHub-Repo ist privat – dann kann MusicBox ohne Anmeldung nicht nach Updates suchen (Repo auf „Public“ stellen)."}
         return {"fehler": f"GitHub antwortet nicht (HTTP {e.code})."}
     except Exception:
         return {"fehler": "Keine Internetverbindung zu GitHub."}

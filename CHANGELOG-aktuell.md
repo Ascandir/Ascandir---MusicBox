@@ -1,4 +1,4 @@
-## 🎵 MusicBox 0.1.3
+## 🎵 MusicBox 0.1.4
 
-- **Strata startet wieder sauber**, wenn der Berater oder der Songtext-Knopf es zum zweiten Mal braucht: MusicBox lässt Strata beim Beenden jetzt in Ruhe herunterfahren, statt es sofort hart abzuschießen
-- Hängt Strata trotzdem noch vom letzten Mal („live managed runtime“), räumt MusicBox das automatisch auf und startet neu
+- Klarere Meldung, wenn die Update-Suche nichts findet (z. B. weil das GitHub-Repo privat ist)
+- Enthält alle Verbesserungen aus 0.1.1–0.1.3: Strata startet sauber neu, Python und KIs enden immer mit MusicBox, KIs werden vor Updates beendet
