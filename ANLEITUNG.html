@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="de"><head><meta charset="utf-8"><title>Ascandir MusicBox – Anleitung</title>
+<style>
+body{font-family:"Segoe UI",system-ui,sans-serif;background:#15110e;color:#e8ddd0;max-width:820px;margin:40px auto;padding:0 24px;line-height:1.6}
+h1{color:#f2a93b}h2{color:#f2a93b;margin-top:32px;border-bottom:1px solid #3a3027;padding-bottom:4px}
+code{background:#2a231d;padding:1px 6px;border-radius:4px}.tip{border-left:4px solid #f2a93b;background:rgba(242,169,59,.08);padding:10px 16px;border-radius:6px}
+</style></head><body>
+<h1>🎵 Ascandir MusicBox</h1>
+<p>Songs mit lokaler KI bauen. Die Musik macht <b>ACE-Step 1.5</b>, den Text und die Beratung übernimmt dein <b>Strata</b>.</p>
+
+<h2>1. Song bauen</h2>
+<ol>
+<li><b>Musikrichtung &amp; Feeling</b> beschreiben – ganz normal auf Deutsch, z. B. „düsterer Fantasy-Folk, ruhig, Refrain episch“.</li>
+<li><b>Instrumente</b> anklicken.</li>
+<li><b>Gesang</b> wählen. „Kein Gesang“ = instrumental, dann verschwindet das Textfeld.</li>
+<li>In <b>Deine Idee</b> den groben Text schreiben und auf <b>✨ Mit Strata zum richtigen Songtext machen</b> klicken.
+Strata startet, schreibt den Text (und eine englische Stilbeschreibung für die Musik-KI) und beendet sich wieder.
+Den fertigen Text kannst du frei bearbeiten.</li>
+<li>Rechts <b>BPM</b>, Tonart, Takt und Länge einstellen und auf <b>🎵 Song erzeugen</b> klicken.</li>
+</ol>
+<p class="tip">Beim allerersten Song startet die Musik-KI zum ersten Mal – das dauert ein paar Minuten. Danach geht es deutlich schneller.
+Die Musik-KI bleibt eine Weile an (Einstellung: 10 Minuten), damit weitere Songs schnell entstehen.</p>
+
+<h2>2. KI-Berater</h2>
+<p>Im Tab <b>💬 KI-Berater</b> erzählst du Strata, was du willst. Er kennt die aktuellen Regler und stellt sie direkt ein –
+unter seiner Antwort steht dann „🎛️ Eingestellt: …“. Strata bleibt an, solange ihr redet, und geht nach 10 Minuten Ruhe,
+beim Song-Erzeugen oder mit <b>⏹ Berater beenden</b> wieder aus.</p>
+
+<h2>3. Meine Songs</h2>
+<p>Alle Songs liegen als FLAC-Datei im Ordner <code>Songs</code> (daneben eine .json mit allen Einstellungen).
+Mit <b>⤴️ Einstellungen übernehmen</b> holst du einen alten Song zurück in den Bau-Tab, um daran weiterzuarbeiten –
+mit gleichem Seed bekommst du denselben Song, mit anderem Seed eine neue Variante.</p>
+
+<h2>4. Wenn etwas nicht klappt</h2>
+<ul>
+<li><b>Grafikspeicher reicht nicht / Treiber stürzt ab:</b> Einstellungen → Grafikkarten-Modus „Schonend“, kürzere Songs, Turbo statt XL.</li>
+<li><b>Strata wird nicht gefunden:</b> Einstellungen → Sprach-KI → Strata-Einstellungen → „Strata &amp; Presets suchen“ oder Pfad eintragen.</li>
+<li><b>Sonst:</b> Einstellungen → <b>🐞 Debug-Log erstellen</b> und die Datei an Claude schicken.</li>
+</ul>
+<p>MusicBox verändert nie deinen Grafiktreiber. Für AMD wird ein Adrenalin-Treiber ab Januar 2026 empfohlen.</p>
+</body></html>

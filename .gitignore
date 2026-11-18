@@ -1,0 +1,6 @@
+*.exe
+*.syso
+installer/setup/payload/
+__pycache__/
+daten/
+Songs/
