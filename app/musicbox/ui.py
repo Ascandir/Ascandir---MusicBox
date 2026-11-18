@@ -137,7 +137,7 @@ def do_generate(*vals, progress=gr.Progress()):
     ups = []
     for i in range(MAX_VARIANTEN):
         if i < len(files):
-            ups.append(gr.update(value=files[i], visible=True, label=Path(files[i]).stem))
+            ups.append(gr.update(value=files[i], visible=True, label=f"🎵 Neu: {Path(files[i]).stem}"))
         else:
             ups.append(gr.update(value=None, visible=False))
     return [md, seed, *ups]
@@ -669,8 +669,13 @@ def build():
         gesang.change(lambda g: gr.update(visible=g != S.INSTRUMENTAL), gesang, lyr_box)
         qualitaet.change(lambda q: gr.update(visible=q == M.Q_EXPERIMENT), qualitaet, schritte)
         lyr_btn.click(do_lyrics, CONTROLS, [*CONTROLS, lyr_md], concurrency_limit=1, show_progress_on=[lyr_md])
-        ev_gen = gen_btn.click(do_generate, [*CONTROLS, zufall, seed], [gen_md, seed, *outs],
-                               concurrency_limit=1, show_progress_on=[gen_md])
+        # Erst die alten Player leeren und stoppen (sonst bleibt im Programmfenster evtl. der alte Song stehen),
+        # dann erzeugen
+        ev_gen = gen_btn.click(
+            lambda: ["⏳ Song wird vorbereitet …", *[gr.update(value=None, visible=False) for _ in outs]],
+            None, [gen_md, *outs], queue=False).then(
+            do_generate, [*CONTROLS, zufall, seed], [gen_md, seed, *outs],
+            concurrency_limit=1, show_progress_on=[gen_md])
         ev_gen.then(lambda: gr.update(choices=song_list()), None, lib)
         stop_btn.click(do_cancel, None, gen_md)
         folder_btn.click(open_songs, None, folder_md)
