@@ -104,7 +104,7 @@ def write_lyrics(song, progress=lambda f, m: None):
 # ---------- Berater ----------
 def berater_system(song):
     inst = ", ".join(sorted(S.ALLE_INSTRUMENTE.values()))
-    cur = {k: song.get(k) for k in ("titel", "stil", "stil_en", "gesang", "sprache", "bpm", "tonart", "takt",
+    cur = {k: song.get(k) for k in ("titel", "stil", "stil_en", "gesang", "stimmklang", "sprache", "bpm", "tonart", "takt",
                                      "dauer", "idee", "songtext")}
     cur["instrumente"] = [S.ALLE_INSTRUMENTE.get(t, t) for t in song.get("instrumente") or []]
     return f"""Du bist der KI-Berater in der „Ascandir MusicBox“, einer App, die mit der Musik-KI ACE-Step Songs erzeugt.
@@ -122,6 +122,7 @@ REGLER, DIE DU SETZEN KANNST:
   Die Stimme (Mann/Frau/Chor) NICHT in stil/stil_en schreiben – dafür gibt es den Regler "gesang".
 - instrumente: Liste, NUR aus: {inst}
 - gesang: eine von: {", ".join(S.GESANG)}
+- stimmklang (Autotune ja/nein): eine von: {", ".join(S.STIMMKLANG)}
 - sprache (des Songtexts): eine von: {", ".join(M.SPRACHEN)}
 - bpm: Zahl {S.BPM_MIN}–{S.BPM_MAX}
 - tonart: z. B. "A minor", "F# major", "Eb major"
@@ -170,7 +171,7 @@ def parse_regler(text):
 
 def describe_changes(old, new):
     names = {"titel": "Titel", "stil": "Stil", "stil_en": "Stil (für die KI)", "instrumente": "Instrumente",
-             "gesang": "Gesang", "sprache": "Sprache", "bpm": "BPM", "tonart": "Tonart", "takt": "Takt",
+             "gesang": "Gesang", "stimmklang": "Stimmklang", "sprache": "Sprache", "bpm": "BPM", "tonart": "Tonart", "takt": "Takt",
              "dauer": "Länge", "idee": "Idee", "songtext": "Songtext"}
     out = []
     for k, label in names.items():

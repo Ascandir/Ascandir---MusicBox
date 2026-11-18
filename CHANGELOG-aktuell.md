@@ -1,4 +1,6 @@
-## 🎵 MusicBox 0.1.9
+## 🎵 MusicBox 0.2.0 – natürlichere Stimmen
 
-- **Player zeigt immer den neuen Song:** Beim Klick auf „🎵 Song erzeugen“ werden die Player sofort geleert und gestoppt; der fertige Song erscheint dann als „🎵 Neu: …“. Vorher konnte im Programmfenster der alte Song stehen bleiben.
-- Aus 0.1.8: Musik-KI fährt nach dem Song herunter, XL-Modelle werden auch bei laufender KI nachgeladen, Qualitätsstufen neu (Beste = XL-Turbo + großer Song-Planer)
+- **Keine Übersteuerung mehr:** Der fertige Song wird wie im ACE-Step-Original auf −1 dB begrenzt. Vorher konnten laute Stellen (vor allem der Gesang) beim Speichern abgeschnitten werden – das klang verzerrt.
+- **Klangkorrektur wie im Original (DCW):** Die Turbo-Stufen (Schnell, Besser, Beste) rechnen jetzt mit der Wavelet-Korrektur, die ACE-Step selbst standardmäßig nutzt und die in ComfyUI fehlt. Sorgt für sauberere Details.
+- **Neu: 🎙️ Klang der Stimme** – Natürlich (ohne Autotune) · Leicht bearbeitet · Autotune. Auch der KI-Berater kann das einstellen.
+- Widersprüchliche Autotune-Angaben in der Stilbeschreibung werden automatisch entfernt

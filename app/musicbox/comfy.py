@@ -534,11 +534,23 @@ def build_graph(p, seed, save_node="SaveAudioAdvanced"):
             "temperature": 0.85, "top_p": q["top_p"], "top_k": 0, "min_p": 0.0}},
         "6": {"class_type": "ConditioningZeroOut", "inputs": {"conditioning": ["5", 0]}},
         "7": {"class_type": "EmptyAceStep1.5LatentAudio", "inputs": {"seconds": secs, "batch_size": 1}},
-        "8": {"class_type": "KSampler", "inputs": {
-            "model": ["4", 0], "positive": ["5", 0], "negative": ["6", 0], "latent_image": ["7", 0],
-            "seed": seed, "steps": steps, "cfg": q["cfg"], "sampler_name": "euler", "scheduler": "simple", "denoise": 1.0}},
         "9": {"class_type": "VAEDecodeAudio", "inputs": {"samples": ["8", 0], "vae": ["3", 0]}},
+        # Spitzen auf −1 dB wie im ACE-Step-Original (sonst übersteuert der Gesang beim Speichern)
+        "15": {"class_type": "MusicBoxPeakNormalize", "inputs": {"audio": ["9", 0], "target_db": -1.0}},
     }
+    if q["cfg"] <= 1:
+        # Turbo wie im Original: Euler + DCW-Wavelet-Korrektur (scaler 0.05 / 0.02)
+        g["12"] = {"class_type": "MusicBoxAceDCWSampler", "inputs": {"low_scaler": 0.05, "high_scaler": 0.02}}
+        g["13"] = {"class_type": "BasicScheduler", "inputs": {"model": ["4", 0], "scheduler": "simple",
+                                                              "steps": steps, "denoise": 1.0}}
+        g["8"] = {"class_type": "SamplerCustom", "inputs": {
+            "model": ["4", 0], "add_noise": True, "noise_seed": seed, "cfg": 1.0, "positive": ["5", 0],
+            "negative": ["6", 0], "sampler": ["12", 0], "sigmas": ["13", 0], "latent_image": ["7", 0]}}
+    else:
+        g["8"] = {"class_type": "KSampler", "inputs": {
+            "model": ["4", 0], "positive": ["5", 0], "negative": ["6", 0], "latent_image": ["7", 0],
+            "seed": seed, "steps": steps, "cfg": q["cfg"], "sampler_name": "euler", "scheduler": "simple",
+            "denoise": 1.0}}
     if q["cfg"] > 1:
         # SFT wie im ACE-Step-Original mit APG statt hartem CFG führen (sonst verzerrte Stimmen)
         g["11"] = {"class_type": "MusicBoxAceAPG", "inputs": {"model": ["4", 0], "norm_threshold": 2.5,
@@ -547,14 +559,14 @@ def build_graph(p, seed, save_node="SaveAudioAdvanced"):
     # eindeutiger Name: sonst liefert ComfyUI bei gleichem Auftrag nur das alte (schon verschobene) Ergebnis
     prefix = f"musicbox/{uuid.uuid4().hex[:12]}"
     if save_node == "SaveAudioAdvanced":
-        g["10"] = {"class_type": "SaveAudioAdvanced", "inputs": {"audio": ["9", 0], "filename_prefix": prefix,
+        g["10"] = {"class_type": "SaveAudioAdvanced", "inputs": {"audio": ["15", 0], "filename_prefix": prefix,
                                                                  "format": "flac"}}
     else:
-        g["10"] = {"class_type": "SaveAudio", "inputs": {"audio": ["9", 0], "filename_prefix": prefix}}
+        g["10"] = {"class_type": "SaveAudio", "inputs": {"audio": ["15", 0], "filename_prefix": prefix}}
     return g
 
 
-PHASEN = {"1": "📦 Musik-Modell wird geladen", "2": "📦 Song-Planer wird geladen", "3": "📦 Klang-Decoder wird geladen",
+PHASEN = {"15": "🔊 Lautstärke wird angepasst", "1": "📦 Musik-Modell wird geladen", "2": "📦 Song-Planer wird geladen", "3": "📦 Klang-Decoder wird geladen",
           "5": "🎼 Der Song-Planer komponiert (Aufbau, Melodie, Gesang)", "8": "🎛️ Musik wird erzeugt",
           "9": "🔊 Audio wird berechnet", "10": "💾 Wird gespeichert"}
 
@@ -677,8 +689,8 @@ def generate(p, progress=lambda f, m: None):
             try:
                 pid = _submit(build_graph(p, seed, save_node), cid)
             except RuntimeError as e:
-                if "MusicBoxAceAPG" in str(e) and _started:
-                    log.info("ComfyUI kennt den APG-Baustein noch nicht – Neustart")
+                if "MusicBox" in str(e) and _started:
+                    log.info("ComfyUI kennt die MusicBox-Bausteine noch nicht – Neustart")
                     stop()
                     start(lambda f, m: progress(f, m), qualitaet=p.get("qualitaet"))
                     pid = _submit(build_graph(p, seed, save_node), cid)

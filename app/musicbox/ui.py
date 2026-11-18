@@ -37,17 +37,17 @@ def collect(*vals):
     inst = []
     for _ in CATS:
         inst += list(next(it) or [])
-    gesang, sprache, idee, songtext, bpm, tonart, takt, dauer, varianten, qualitaet, schritte = it
+    gesang, sprache, idee, songtext, bpm, tonart, takt, dauer, varianten, qualitaet, schritte, stimmklang = it
     return S.clamp(dict(titel=titel, stil=stil, stil_en=stil_en, instrumente=inst, gesang=gesang, sprache=sprache,
                         idee=idee, songtext=songtext, bpm=bpm, tonart=tonart, takt=takt, dauer=dauer,
-                        varianten=varianten, qualitaet=qualitaet, schritte=schritte))
+                        varianten=varianten, qualitaet=qualitaet, schritte=schritte, stimmklang=stimmklang))
 
 
 def to_values(song):
     s = S.clamp(song)
     per_cat = [[t for _, t in S.INSTRUMENTE[c] if t in s["instrumente"]] for c in CATS]
     return [s["titel"], s["stil"], s["stil_en"], *per_cat, s["gesang"], s["sprache"], s["idee"], s["songtext"],
-            s["bpm"], s["tonart"], s["takt"], s["dauer"], s["varianten"], s["qualitaet"], s["schritte"]]
+            s["bpm"], s["tonart"], s["takt"], s["dauer"], s["varianten"], s["qualitaet"], s["schritte"], s["stimmklang"]]
 
 
 def save_draft(song):
@@ -212,7 +212,9 @@ def show_song(path):
     d = int(m.get("dauer", 0))
     md = (f"### {m.get('titel') or Path(path).stem}\n"
           f"**Stil:** {m.get('stil') or m.get('stil_en') or '–'}  \n"
-          f"**Instrumente:** {inst}  \n**Gesang:** {m.get('gesang', '–')} · **Sprache:** {m.get('sprache', '–')}  \n"
+          f"**Instrumente:** {inst}  \n**Gesang:** {m.get('gesang', '–')}"
+          f"{' (' + m['stimmklang'] + ')' if m.get('stimmklang') and m.get('gesang') != S.INSTRUMENTAL else ''}"
+          f" · **Sprache:** {m.get('sprache', '–')}  \n"
           f"**BPM:** {m.get('bpm')} · **Tonart:** {m.get('tonart')} · **Takt:** {m.get('takt')} · "
           f"**Länge:** {d // 60}:{d % 60:02d} · **Seed:** `{m.get('seed')}`  \n"
           f"*Erstellt {m.get('erstellt', '?')} in {m.get('dauer_erzeugung_s', '?')} s "
@@ -513,6 +515,9 @@ def build():
                                     label=cat, elem_classes=["inst-group"]))
                         gesang = gr.Radio(list(S.GESANG), value=vals[3 + len(CATS)], label="🎤 Gesang / Lyrics")
                         with gr.Group(visible=draft["gesang"] != S.INSTRUMENTAL) as lyr_box:
+                            stimmklang = gr.Radio(list(S.STIMMKLANG), value=vals[14 + len(CATS)], label="🎙️ Klang der Stimme",
+                                                  info="Natürlich = möglichst echte, unbearbeitete Stimme · Autotune = der typische "
+                                                       "„Roboter“-Effekt aus Pop/Trap")
                             sprache = gr.Dropdown(list(M.SPRACHEN), value=vals[4 + len(CATS)], label="Sprache des Songtexts")
                             idee = gr.Textbox(label="Deine Idee (grober Text)", value=vals[5 + len(CATS)], lines=5,
                                               placeholder="Schreib einfach drauf los: worum geht's, Stichpunkte, Zeilen, die "
@@ -650,7 +655,7 @@ def build():
 
         # ---------- Verdrahtung ----------
         CONTROLS = [titel, stil, stil_en, *inst_groups, gesang, sprache, idee, songtext, bpm, tonart, takt, dauer,
-                    varianten, qualitaet, schritte]
+                    varianten, qualitaet, schritte, stimmklang]
 
         quit_btn.click(do_quit, None, quit_md)
         upd_btn.click(lambda: update_text(U.check(force=True)), None, [upd_md, upd_go])

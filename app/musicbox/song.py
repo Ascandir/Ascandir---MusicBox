@@ -54,6 +54,14 @@ GESANG_MARKE = {
 }
 INSTRUMENTAL = "Kein Gesang (instrumental)"
 
+# Klang der Stimme (Autotune ja/nein)
+STIMMKLANG = {
+    "🎙️ Natürlich (ohne Autotune)": "natural vocals, raw human voice, expressive live vocal performance",
+    "✨ Leicht bearbeitet": "polished studio vocals, subtle pitch correction",
+    "🤖 Autotune": "autotune vocals, heavy pitch correction, auto-tuned voice",
+}
+NATUERLICH = list(STIMMKLANG)[0]
+
 DEFAULT_SONG = {
     "titel": "",
     "stil": "",
@@ -69,6 +77,7 @@ DEFAULT_SONG = {
     "dauer": 150,
     "varianten": 1,
     "qualitaet": Q_SCHNELL,
+    "stimmklang": NATUERLICH,
     "schritte": 50,
 }
 
@@ -86,7 +95,8 @@ _VOCAL_RE = re.compile(
     r"(?:fe)?male\s+(?:lead\s+)?(?:vocals?|voices?|singers?|vocalists?)\b"
     r"|\b(?:wo)?m[ae]n'?s?\s+(?:vocals?|voices?)\b|\b(?:girl|boy)\s+(?:vocals?|voices?)\b"
     r"|\b(?:choir|choral|group|gang)\s+vocals?\b|\bduet\b|\binstrumental\b|\bno vocals\b"
-    r"|\b(?:männlich|weiblich)e[rn]?\s+(?:gesang|stimmen?)\b|\b(?:sänger|sängerin)\b")
+    r"|\b(?:männlich|weiblich)e[rn]?\s+(?:gesang|stimmen?)\b|\b(?:sänger|sängerin)\b"
+    r"|\b(?:heavy |subtle )?auto-?tuned?(?: vocals?| voices?)?\b|\b(?:heavy |subtle )?pitch[- ]correct(?:ed|ion)\b")
 
 
 def strip_vocals(text):
@@ -102,6 +112,8 @@ def tags(song):
     stimme = GESANG.get(song.get("gesang"), "")
     if stimme:
         teile.append(stimme)
+    if mit_gesang(song):
+        teile.append(STIMMKLANG.get(song.get("stimmklang"), STIMMKLANG[NATUERLICH]))
     stil = strip_vocals((song.get("stil_en") or "").strip() or (song.get("stil") or "").strip())
     if stil:
         teile.append(stil)
@@ -177,6 +189,10 @@ def clamp(song):
         s["schritte"] = max(20, min(100, int(s["schritte"])))
     except Exception:
         s["schritte"] = 50
+    if s["stimmklang"] not in STIMMKLANG:
+        k = str(s["stimmklang"]).lower()
+        s["stimmklang"] = next((n for n in STIMMKLANG if k and (k in n.lower() or ("auto" in k and "Autotune" in n))),
+                               NATUERLICH)
     if s["tonart"] not in TONARTEN:
         s["tonart"] = normalize_key(s["tonart"]) or DEFAULT_SONG["tonart"]
     if s["takt"] not in TAKTE:
