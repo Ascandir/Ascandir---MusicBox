@@ -1,8 +1,8 @@
-## 🎵 MusicBox 0.1.5
+## 🎵 MusicBox 0.1.6
 
-- **Gesangsauswahl wirkt jetzt richtig:** Männlich, Weiblich, Duett und Chor werden an die Musik-KI klar weitergegeben
-  - die Stimme steht jetzt vorne in der Beschreibung (dort hat sie das meiste Gewicht)
-  - widersprüchliche Stimm-Angaben aus der Stilbeschreibung (z. B. „female vocals“ von Strata) werden automatisch entfernt
-  - die Abschnitte im Songtext bekommen die passende Stimme, z. B. `[Verse 1 - male vocal]` (dein Text im Feld bleibt unverändert)
-  - Duett: Strophen abwechselnd Mann/Frau, Refrain gemeinsam
-- Strata schreibt beim Songtext und im Berater keine Stimme mehr in die Stilbeschreibung
+- **Neu: Qualität pro Song wählbar** (im Tab „Song bauen“ rechts):
+  - ⚡ Schnell (Turbo, 8 Rechenschritte) – zum Ausprobieren
+  - ✨ Besser (XL-Turbo, 8 Rechenschritte)
+  - 💎 Beste (XL-SFT, 50 Rechenschritte, starker Song-Planer) – dauert deutlich länger, klingt am detailreichsten; „Feinschliff“ bis 100 Schritte einstellbar
+  - Die Modelle werden beim ersten Song der jeweiligen Stufe automatisch nachgeladen
+- Aus 0.1.5: Männlich / Weiblich / Duett / Chor wird jetzt zuverlässig an die Musik-KI weitergegeben

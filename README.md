@@ -11,7 +11,7 @@ ComfyUI für AMD ROCm oder NVIDIA, die ACE-Step-1.5-Modelle). Updates gibt es im
 
 ## Funktionen
 - **🎼 Song bauen**: Titel, Musikrichtung & Feeling, ~60 Instrumente in 5 Gruppen, Gesang (oder instrumental),
-  Sprache, BPM, Tonart, Takt, Länge, Varianten, Seed
+  Sprache, BPM, Tonart, Takt, Länge, Varianten, Seed, Qualität (Schnell / Besser / Beste mit einstellbaren Rechenschritten)
 - **✨ Songtext mit Strata**: Idee rein → fertiger Text mit `[Verse]`/`[Chorus]` + englische Stilbeschreibung für die
   Musik-KI. Strata wird dafür gestartet und danach wieder beendet.
 - **💬 KI-Berater**: Chat mit Strata, der die aktuellen Regler kennt und sie per Antwort setzt

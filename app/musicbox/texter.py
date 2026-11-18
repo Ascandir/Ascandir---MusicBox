@@ -164,7 +164,7 @@ def parse_regler(text):
         log.info("Regler-Block nicht lesbar: %s", raw[:300])
         return (text or "").strip(), {}
     clean = ((text or "")[:span[0]] + (text or "")[span[1]:]).strip()
-    allowed = set(S.DEFAULT_SONG) - {"varianten"}
+    allowed = set(S.DEFAULT_SONG) - {"varianten", "qualitaet", "schritte"}
     return clean, {k: v for k, v in data.items() if k in allowed}
 
 

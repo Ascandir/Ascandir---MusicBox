@@ -28,7 +28,6 @@ DEFAULT_SETTINGS = {
     "comfy_ordner": "",                       # leer = eingebaute Installation unter daten/comfyui
     "grafikkarte": "Automatisch",             # Automatisch | AMD | NVIDIA
     "gpu_modus": "Ausgewogen",                # Schonend | Ausgewogen | Volle Leistung
-    "musik_modell": "turbo",                  # turbo | xl-turbo
     "planer_modell": "1.7b",                  # 0.6b | 1.7b | 4b
     "audio_codes": True,                      # Song-Planer (LM) einschalten – bessere Qualität
     "musik_leerlauf_min": 10,                 # Musik-KI nach so vielen Minuten Ruhe beenden

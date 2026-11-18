@@ -2,7 +2,7 @@
 import random
 import re
 
-from .comfy import SPRACHEN, TAKTE, TONARTEN
+from .comfy import Q_SCHNELL, QUALITAET, SPRACHEN, TAKTE, TONARTEN
 
 # Kategorie → [(Anzeige, englischer Begriff für die Musik-KI)]
 INSTRUMENTE = {
@@ -68,6 +68,8 @@ DEFAULT_SONG = {
     "takt": "4/4",
     "dauer": 150,
     "varianten": 1,
+    "qualitaet": Q_SCHNELL,
+    "schritte": 50,
 }
 
 # Wertebereiche (auch für den Berater)
@@ -164,6 +166,13 @@ def clamp(song):
         s["varianten"] = max(1, min(4, int(s["varianten"])))
     except Exception:
         s["varianten"] = 1
+    if s["qualitaet"] not in QUALITAET:
+        q = str(s["qualitaet"]).lower()
+        s["qualitaet"] = next((k for k in QUALITAET if q and (q in k.lower() or QUALITAET[k]["modell"] == q)), Q_SCHNELL)
+    try:
+        s["schritte"] = max(20, min(100, int(s["schritte"])))
+    except Exception:
+        s["schritte"] = 50
     if s["tonart"] not in TONARTEN:
         s["tonart"] = normalize_key(s["tonart"]) or DEFAULT_SONG["tonart"]
     if s["takt"] not in TAKTE:

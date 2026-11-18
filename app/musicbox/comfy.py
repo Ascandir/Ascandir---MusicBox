@@ -49,14 +49,19 @@ FILES = {
     "lm-4b":    {"name": "qwen_4b_ace15.safetensors", "dir": "text_encoders", "gb": 8.0},
     "turbo":    {"name": "acestep_v1.5_turbo.safetensors", "dir": "diffusion_models", "gb": 4.8},
     "xl-turbo": {"name": "acestep_v1.5_xl_turbo_bf16.safetensors", "dir": "diffusion_models", "gb": 9.5},
+    "xl-sft":   {"name": "acestep_v1.5_xl_sft_bf16.safetensors", "dir": "diffusion_models", "gb": 9.5},
 }
 for _k, _f in FILES.items():
     _f["url"] = HF + _f["dir"] + "/" + _f["name"]
 
-MUSIK_MODELLE = {        # Anzeige-Name → Schlüssel
-    "Schnell & gut (Turbo, 2 Mrd.)": "turbo",
-    "Beste Qualität (XL-Turbo, 4 Mrd.)": "xl-turbo",
+# Qualitätsstufen (Werte aus den offiziellen ComfyUI-Vorlagen für ACE-Step 1.5)
+QUALITAET = {
+    "⚡ Schnell (Turbo)":            {"modell": "turbo", "steps": 8, "cfg": 1.0, "top_p": 0.9, "planer": None},
+    "✨ Besser (XL-Turbo)":          {"modell": "xl-turbo", "steps": 8, "cfg": 1.0, "top_p": 0.9, "planer": None},
+    "💎 Beste (XL-SFT, dauert deutlich länger)": {"modell": "xl-sft", "steps": 50, "cfg": 7.0, "top_p": 1.0,
+                                                  "planer": "4b"},
 }
+Q_SCHNELL, Q_BESSER, Q_BESTE = list(QUALITAET)
 PLANER_MODELLE = {
     "Normal (1,7 Mrd.) – empfohlen für 16 GB": "1.7b",
     "Stark (4 Mrd.) – braucht mehr Grafikspeicher": "4b",
@@ -198,11 +203,15 @@ def models_dir():
     return (r / "ComfyUI" / "models") if r else None
 
 
-def needed_files(st=None):
+def _planer(st, qualitaet):
+    q = QUALITAET.get(qualitaet or Q_SCHNELL, QUALITAET[Q_SCHNELL])
+    return q["planer"] or ("4b" if st.get("planer_modell") == "4b" else "1.7b")
+
+
+def needed_files(st=None, qualitaet=None):
     st = st or C.settings()
-    keys = ["vae", "te", "lm-4b" if st.get("planer_modell") == "4b" else "lm-1.7b",
-            "xl-turbo" if st.get("musik_modell") == "xl-turbo" else "turbo"]
-    return keys
+    q = QUALITAET.get(qualitaet or Q_SCHNELL, QUALITAET[Q_SCHNELL])
+    return ["vae", "te", "lm-4b" if _planer(st, qualitaet) == "4b" else "lm-1.7b", q["modell"]]
 
 
 def file_path(key):
@@ -217,9 +226,9 @@ def model_status():
     return {k: (file_path(k).exists()) for k in FILES}
 
 
-def missing_files(st=None):
+def missing_files(st=None, qualitaet=None):
     out = []
-    for k in needed_files(st):
+    for k in needed_files(st, qualitaet):
         p = file_path(k)
         if p is None or not p.exists():
             out.append(k)
@@ -279,7 +288,7 @@ def _extract(archive, dest, progress):
         raise RuntimeError("Entpacken von ComfyUI fehlgeschlagen.")
 
 
-def install(progress=lambda f, m: None, only_models=False):
+def install(progress=lambda f, m: None, only_models=False, qualitaet=None):
     """ComfyUI (falls nötig) + fehlende Modelle laden. progress(anteil 0..1, text)."""
     st = C.settings()
     did_comfy = False
@@ -304,7 +313,7 @@ def install(progress=lambda f, m: None, only_models=False):
             raise RuntimeError("ComfyUI wurde entpackt, aber nicht gefunden. Bitte Debug-Log schicken.")
         did_comfy = True
     base = 0.3 if did_comfy else 0.0
-    miss = missing_files(st)
+    miss = missing_files(st, qualitaet)
     total_gb = sum(FILES[k]["gb"] for k in miss) or 1
     done_gb = 0.0
     for k in miss:
@@ -403,15 +412,15 @@ def touch():
     _last_use = time.time()
 
 
-def start(progress=lambda f, m: None):
+def start(progress=lambda f, m: None, qualitaet=None):
     global _proc, _started
     with _lock:
         touch()
         if running():
             return
         root = comfy_root()
-        if root is None or missing_files():
-            install(progress)
+        if root is None or missing_files(qualitaet=qualitaet):
+            install(progress, qualitaet=qualitaet)
             root = comfy_root()
         cmd, env = launch_cmd(root)
         log.info("Musik-KI-Start: %s", cmd)
@@ -483,8 +492,11 @@ TAKTE = {"4/4": "4", "3/4": "3", "6/8": "6", "2/4": "2"}
 
 def build_graph(p, seed, save_node="SaveAudioAdvanced"):
     st = C.settings()
-    unet = FILES["xl-turbo" if st.get("musik_modell") == "xl-turbo" else "turbo"]["name"]
-    lm = FILES["lm-4b" if st.get("planer_modell") == "4b" else "lm-1.7b"]["name"]
+    qn = p.get("qualitaet") or Q_SCHNELL
+    q = QUALITAET.get(qn, QUALITAET[Q_SCHNELL])
+    unet = FILES[q["modell"]]["name"]
+    lm = FILES["lm-4b" if _planer(st, qn) == "4b" else "lm-1.7b"]["name"]
+    steps = int(p.get("schritte") or q["steps"]) if q["modell"] == "xl-sft" else q["steps"]
     secs = float(p["dauer"])
     g = {
         "1": {"class_type": "UNETLoader", "inputs": {"unet_name": unet, "weight_dtype": "default"}},
@@ -497,12 +509,12 @@ def build_graph(p, seed, save_node="SaveAudioAdvanced"):
             "bpm": int(p["bpm"]), "duration": secs, "timesignature": str(p.get("takt", "4")),
             "language": p.get("sprache", "de"), "keyscale": p.get("tonart", "C major"),
             "generate_audio_codes": bool(st.get("audio_codes", True)), "cfg_scale": 2.0,
-            "temperature": 0.85, "top_p": 0.9, "top_k": 0, "min_p": 0.0}},
+            "temperature": 0.85, "top_p": q["top_p"], "top_k": 0, "min_p": 0.0}},
         "6": {"class_type": "ConditioningZeroOut", "inputs": {"conditioning": ["5", 0]}},
         "7": {"class_type": "EmptyAceStep1.5LatentAudio", "inputs": {"seconds": secs, "batch_size": 1}},
         "8": {"class_type": "KSampler", "inputs": {
             "model": ["4", 0], "positive": ["5", 0], "negative": ["6", 0], "latent_image": ["7", 0],
-            "seed": seed, "steps": 8, "cfg": 1.0, "sampler_name": "euler", "scheduler": "simple", "denoise": 1.0}},
+            "seed": seed, "steps": steps, "cfg": q["cfg"], "sampler_name": "euler", "scheduler": "simple", "denoise": 1.0}},
         "9": {"class_type": "VAEDecodeAudio", "inputs": {"samples": ["8", 0], "vae": ["3", 0]}},
     }
     # eindeutiger Name: sonst liefert ComfyUI bei gleichem Auftrag nur das alte (schon verschobene) Ergebnis
@@ -627,7 +639,7 @@ def generate(p, progress=lambda f, m: None):
         raise RuntimeError("Es wird gerade schon ein Song erzeugt.")
     _cancel.clear()
     try:
-        start(lambda f, m: progress(f, m))
+        start(lambda f, m: progress(f, m), qualitaet=p.get("qualitaet"))
         out = []
         n = max(1, int(p.get("varianten", 1)))
         save_node = "SaveAudioAdvanced"
@@ -663,8 +675,8 @@ def generate(p, progress=lambda f, m: None):
             shutil.move(str(src), dest)
             meta = dict(p.get("meta") or {})
             meta.update({"seed": seed, "dauer_erzeugung_s": round(secs), "erstellt": time.strftime("%Y-%m-%d %H:%M"),
-                         "musik_modell": C.settings().get("musik_modell"),
-                         "planer_modell": C.settings().get("planer_modell"),
+                         "musik_modell": QUALITAET.get(p.get("qualitaet") or Q_SCHNELL, {}).get("modell"),
+                         "planer_modell": _planer(C.settings(), p.get("qualitaet")),
                          "tags_ki": p["tags"], "lyrics_ki": p["lyrics"]})
             dest.with_suffix(".json").write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
             log.info("Song fertig: %s (%.0f s)", dest, secs)

@@ -37,17 +37,17 @@ def collect(*vals):
     inst = []
     for _ in CATS:
         inst += list(next(it) or [])
-    gesang, sprache, idee, songtext, bpm, tonart, takt, dauer, varianten = it
+    gesang, sprache, idee, songtext, bpm, tonart, takt, dauer, varianten, qualitaet, schritte = it
     return S.clamp(dict(titel=titel, stil=stil, stil_en=stil_en, instrumente=inst, gesang=gesang, sprache=sprache,
                         idee=idee, songtext=songtext, bpm=bpm, tonart=tonart, takt=takt, dauer=dauer,
-                        varianten=varianten))
+                        varianten=varianten, qualitaet=qualitaet, schritte=schritte))
 
 
 def to_values(song):
     s = S.clamp(song)
     per_cat = [[t for _, t in S.INSTRUMENTE[c] if t in s["instrumente"]] for c in CATS]
     return [s["titel"], s["stil"], s["stil_en"], *per_cat, s["gesang"], s["sprache"], s["idee"], s["songtext"],
-            s["bpm"], s["tonart"], s["takt"], s["dauer"], s["varianten"]]
+            s["bpm"], s["tonart"], s["takt"], s["dauer"], s["varianten"], s["qualitaet"], s["schritte"]]
 
 
 def save_draft(song):
@@ -108,12 +108,15 @@ def do_generate(*vals, progress=gr.Progress()):
     if not (song["stil"].strip() or song["stil_en"].strip() or song["instrumente"]):
         raise gr.Error("Beschreib kurz die Musikrichtung oder wähl ein paar Instrumente.")
     seed = S.random_seed() if zufall or not seed else int(seed)
+    if song["qualitaet"] == M.Q_BESTE:
+        log.info("Beste Qualität: XL-SFT mit %s Schritten", song["schritte"])
     stopped, note = _free_gpu_for_music()
     if stopped:
         log.info("Berater-KI für die Musik beendet")
     p = {"tags": S.tags(song), "lyrics": S.lyrics(song), "bpm": song["bpm"], "dauer": song["dauer"],
          "takt": M.TAKTE[song["takt"]], "sprache": M.SPRACHEN.get(song["sprache"], "de"), "tonart": song["tonart"],
-         "seed": seed, "varianten": song["varianten"], "titel": song["titel"] or "Song", "meta": song}
+         "seed": seed, "varianten": song["varianten"], "titel": song["titel"] or "Song", "meta": song,
+         "qualitaet": song["qualitaet"], "schritte": song["schritte"]}
     log.info("Song erzeugen: %s", json.dumps({k: v for k, v in p.items() if k != "meta"}, ensure_ascii=False)[:1500])
     t0 = time.time()
 
@@ -209,7 +212,8 @@ def show_song(path):
           f"**BPM:** {m.get('bpm')} · **Tonart:** {m.get('tonart')} · **Takt:** {m.get('takt')} · "
           f"**Länge:** {d // 60}:{d % 60:02d} · **Seed:** `{m.get('seed')}`  \n"
           f"*Erstellt {m.get('erstellt', '?')} in {m.get('dauer_erzeugung_s', '?')} s "
-          f"({m.get('musik_modell', '?')}).*")
+          f"({m.get('qualitaet') or m.get('musik_modell', '?')}"
+          f"{', ' + str(m.get('schritte')) + ' Schritte' if m.get('qualitaet') == M.Q_BESTE else ''}).*")
     if m.get("songtext") and m.get("gesang") != S.INSTRUMENTAL:
         md += "\n\n**Songtext:**\n\n" + m["songtext"].replace("\n", "  \n")
     return gr.update(value=path), md
@@ -248,11 +252,12 @@ def musik_status():
         lines.append("❌ Musik-KI (ComfyUI) ist noch nicht installiert – wird beim ersten Song automatisch geladen, "
                      "oder jetzt mit „Musik-KI installieren / Modelle laden“.")
     else:
-        miss = M.missing_files(st)
         lines.append(f"✅ ComfyUI: `{root}`")
-        lines.append("✅ Alle Modelle für die gewählte Einstellung sind da." if not miss else
-                     "⬇️ Es fehlen noch: " + ", ".join(f"{M.FILES[k]['name']} (~{M.FILES[k]['gb']:.1f} GB)" for k in miss)
-                     + " – werden beim nächsten Song automatisch geladen.")
+        for qn in M.QUALITAET:
+            miss = M.missing_files(st, qn)
+            lines.append(f"✅ {qn}: bereit" if not miss else
+                         f"⬇️ {qn}: lädt beim ersten Song noch " +
+                         ", ".join(f"{M.FILES[k]['name']} (~{M.FILES[k]['gb']:.1f} GB)" for k in miss))
     lines.append("🟢 Musik-KI läuft gerade." if M.running() else "⚪ Musik-KI ist aus (startet beim Erzeugen).")
     hint = M.driver_hint()
     if hint:
@@ -294,12 +299,12 @@ def do_music_stop():
     return musik_status()
 
 
-def save_settings(musik, planer, codes, gpu_modus, karte, musik_idle, comfy_ordner,
+def save_settings(planer, codes, gpu_modus, karte, musik_idle, comfy_ordner,
                   ki_mode, strata_cmd, strata_stop, strata_wait, berater_idle, url, model,
                   songs_ordner, design, upd_start):
     old = C.settings()
     st = C.update_settings(
-        musik_modell=M.MUSIK_MODELLE.get(musik, "turbo"), planer_modell=M.PLANER_MODELLE.get(planer, "1.7b"),
+        planer_modell=M.PLANER_MODELLE.get(planer, "1.7b"),
         audio_codes=bool(codes), gpu_modus=gpu_modus, grafikkarte=karte, musik_leerlauf_min=int(musik_idle),
         comfy_ordner=(comfy_ordner or "").strip().strip('"'), ki_modus=ki_mode, strata_befehl=(strata_cmd or "").strip(),
         strata_beenden=bool(strata_stop), strata_wartezeit=int(strata_wait) * 60, berater_leerlauf_min=int(berater_idle),
@@ -522,6 +527,12 @@ def build():
                                           label="Länge (Sekunden)", info="150 s = 2:30 min")
                         varianten = gr.Slider(1, MAX_VARIANTEN, value=vals[11 + len(CATS)], step=1,
                                               label="Varianten", info="Mehrere Versionen nacheinander (jede mit anderem Seed)")
+                        qualitaet = gr.Radio(list(M.QUALITAET), value=vals[12 + len(CATS)], label="💎 Qualität",
+                                             info="Mehr Qualität = mehr Rechenzeit. Beim ersten Mal wird das jeweilige "
+                                                  "Modell nachgeladen (je ca. 9,5 GB, „Beste“ zusätzlich der starke Song-Planer ca. 8 GB).")
+                        schritte = gr.Slider(20, 100, value=vals[13 + len(CATS)], step=5, label="Feinschliff (Rechenschritte)",
+                                             info="Nur bei „Beste“: 50 = empfohlen. Mehr Schritte = feinere Details, dauert länger.",
+                                             visible=draft["qualitaet"] == M.Q_BESTE)
                         with gr.Row():
                             zufall = gr.Checkbox(value=True, label="Zufälliger Seed", scale=1)
                             seed = gr.Number(value=0, precision=0, label="Seed", scale=2)
@@ -574,13 +585,11 @@ def build():
 
                 gr.Markdown("### 🎵 Musik-KI (ACE-Step 1.5 über ComfyUI)")
                 mus_md = gr.Markdown(musik_status())
-                rev_m = {v: k for k, v in M.MUSIK_MODELLE.items()}
                 rev_p = {v: k for k, v in M.PLANER_MODELLE.items()}
                 with gr.Row():
-                    s_musik = gr.Radio(list(M.MUSIK_MODELLE), value=rev_m.get(st.get("musik_modell"), list(M.MUSIK_MODELLE)[0]),
-                                       label="Musik-Modell", info="XL klingt besser, braucht ~9 GB zusätzlichen Download und ist langsamer")
                     s_planer = gr.Radio(list(M.PLANER_MODELLE), value=rev_p.get(st.get("planer_modell"), list(M.PLANER_MODELLE)[0]),
-                                        label="Song-Planer", info="Plant Aufbau, Melodie und Gesang, bevor die Musik entsteht")
+                                        label="Song-Planer (für Schnell & Besser)",
+                                        info="Plant Aufbau, Melodie und Gesang, bevor die Musik entsteht. „Beste“ nimmt immer den starken.")
                 s_codes = gr.Checkbox(value=st.get("audio_codes", True),
                                       label="Song-Planer benutzen (langsamer, aber deutlich bessere Songs – empfohlen)")
                 with gr.Row():
@@ -633,7 +642,7 @@ def build():
 
         # ---------- Verdrahtung ----------
         CONTROLS = [titel, stil, stil_en, *inst_groups, gesang, sprache, idee, songtext, bpm, tonart, takt, dauer,
-                    varianten]
+                    varianten, qualitaet, schritte]
 
         quit_btn.click(do_quit, None, quit_md)
         upd_btn.click(lambda: update_text(U.check(force=True)), None, [upd_md, upd_go])
@@ -642,12 +651,15 @@ def build():
         def startup():
             info = U.check() if C.settings().get("update_beim_start", True) else {}
             up = update_text(info) if info.get("neu") else ("", gr.update(visible=False))
-            return [*up, *to_values(load_draft()), gr.update(visible=load_draft()["gesang"] != S.INSTRUMENTAL)]
-        app.load(startup, None, [upd_md, upd_go, *CONTROLS, lyr_box])
+            d = load_draft()
+            return [*up, *to_values(d), gr.update(visible=d["gesang"] != S.INSTRUMENTAL),
+                    gr.update(visible=d["qualitaet"] == M.Q_BESTE)]
+        app.load(startup, None, [upd_md, upd_go, *CONTROLS, lyr_box, schritte])
         app.load(_on_load, None, None)
         app.unload(_on_unload)
 
         gesang.change(lambda g: gr.update(visible=g != S.INSTRUMENTAL), gesang, lyr_box)
+        qualitaet.change(lambda q: gr.update(visible=q == M.Q_BESTE), qualitaet, schritte)
         lyr_btn.click(do_lyrics, CONTROLS, [*CONTROLS, lyr_md], concurrency_limit=1, show_progress_on=[lyr_md])
         ev_gen = gen_btn.click(do_generate, [*CONTROLS, zufall, seed], [gen_md, seed, *outs],
                                concurrency_limit=1, show_progress_on=[gen_md])
@@ -673,7 +685,7 @@ def build():
         inst_btn.click(do_install_music, None, mus_md, concurrency_limit=1)
         mstop_btn.click(do_music_stop, None, mus_md)
         mref_btn.click(musik_status, None, mus_md)
-        s_save.click(save_settings, [s_musik, s_planer, s_codes, s_gpu, s_karte, s_midle, s_comfy, s_kimode, s_scmd,
+        s_save.click(save_settings, [s_planer, s_codes, s_gpu, s_karte, s_midle, s_comfy, s_kimode, s_scmd,
                                      s_sstop, s_swait, s_bidle, s_url, s_model, s_songs, s_design, s_upd],
                      [s_md, mus_md, ki_md])
         s_kimode.change(lambda m: (C.update_settings(ki_modus=m), ki_status())[1], s_kimode, ki_md)
