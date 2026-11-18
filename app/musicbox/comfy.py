@@ -407,6 +407,23 @@ def launch_cmd(root):
     return cmd, env
 
 
+NODES_SRC = Path(__file__).resolve().parent / "comfy_nodes"
+
+
+def install_nodes(root):
+    """Eigene ComfyUI-Bausteine (z. B. APG für ACE-Step SFT) nach ComfyUI/custom_nodes kopieren."""
+    dest = root / "ComfyUI" / "custom_nodes"
+    try:
+        dest.mkdir(parents=True, exist_ok=True)
+        for f in NODES_SRC.glob("*.py"):
+            target = dest / f.name
+            if not target.exists() or target.read_bytes() != f.read_bytes():
+                shutil.copyfile(f, target)
+                log.info("ComfyUI-Baustein installiert: %s", target)
+    except Exception as e:
+        log.info("ComfyUI-Bausteine nicht kopiert: %s", e)
+
+
 def touch():
     global _last_use
     _last_use = time.time()
@@ -422,6 +439,7 @@ def start(progress=lambda f, m: None, qualitaet=None):
         if root is None or missing_files(qualitaet=qualitaet):
             install(progress, qualitaet=qualitaet)
             root = comfy_root()
+        install_nodes(root)
         cmd, env = launch_cmd(root)
         log.info("Musik-KI-Start: %s", cmd)
         logf = open(LOG, "a", encoding="utf-8", errors="replace")
@@ -517,6 +535,11 @@ def build_graph(p, seed, save_node="SaveAudioAdvanced"):
             "seed": seed, "steps": steps, "cfg": q["cfg"], "sampler_name": "euler", "scheduler": "simple", "denoise": 1.0}},
         "9": {"class_type": "VAEDecodeAudio", "inputs": {"samples": ["8", 0], "vae": ["3", 0]}},
     }
+    if q["cfg"] > 1:
+        # SFT wie im ACE-Step-Original mit APG statt hartem CFG führen (sonst verzerrte Stimmen)
+        g["11"] = {"class_type": "MusicBoxAceAPG", "inputs": {"model": ["4", 0], "norm_threshold": 2.5,
+                                                            "momentum": -0.75, "eta": 0.0}}
+        g["8"]["inputs"]["model"] = ["11", 0]
     # eindeutiger Name: sonst liefert ComfyUI bei gleichem Auftrag nur das alte (schon verschobene) Ergebnis
     prefix = f"musicbox/{uuid.uuid4().hex[:12]}"
     if save_node == "SaveAudioAdvanced":
@@ -650,7 +673,12 @@ def generate(p, progress=lambda f, m: None):
             try:
                 pid = _submit(build_graph(p, seed, save_node), cid)
             except RuntimeError as e:
-                if save_node == "SaveAudioAdvanced" and "SaveAudioAdvanced" in str(e):
+                if "MusicBoxAceAPG" in str(e) and _started:
+                    log.info("ComfyUI kennt den APG-Baustein noch nicht – Neustart")
+                    stop()
+                    start(lambda f, m: progress(f, m), qualitaet=p.get("qualitaet"))
+                    pid = _submit(build_graph(p, seed, save_node), cid)
+                elif save_node == "SaveAudioAdvanced" and "SaveAudioAdvanced" in str(e):
                     save_node = "SaveAudio"            # ältere ComfyUI-Version
                     pid = _submit(build_graph(p, seed, save_node), cid)
                 else:
