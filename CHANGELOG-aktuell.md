@@ -6,3 +6,4 @@
 - 🎧 Meine Songs: Bibliothek mit Abspielen, Einstellungen übernehmen, Löschen
 - Musik-KI: ACE-Step 1.5 über ComfyUI (AMD ROCm / NVIDIA), wird vom Setup mitinstalliert
 - Setup mit Ordnerwahl, Updates im Tool, Debug-Log
+

@@ -33,4 +33,4 @@ ComfyUI für AMD ROCm oder NVIDIA, die ACE-Step-1.5-Modelle). Updates gibt es im
 go install github.com/tc-hib/go-winres@latest
 ./build.sh   # erzeugt Ascandir-MusicBox-Setup.exe
 ```
-Neue Version: `app/VERSION` erhöhen, `CHANGELOG-aktuell.md` anpassen, Tag `vX.Y.Z` pushen – GitHub baut das Release.
+Neue Version: `app/VERSION` erhöhen und `CHANGELOG-aktuell.md` anpassen, auf main pushen – GitHub baut das Release mit der Setup-Datei automatisch.
