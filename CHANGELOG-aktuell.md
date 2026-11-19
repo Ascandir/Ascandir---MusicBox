@@ -1,5 +1,8 @@
-## 🎵 MusicBox 0.2.1
+## 🎵 MusicBox 0.2.2 – nichts mehr auf der Systempartition
 
-- **KI-Berater antwortet wieder vernünftig:** Strata's internes „Nachdenken“ wird jetzt abgeschaltet. Verheddert es sich trotzdem darin (wirre englische Antwort wie „The user wants me to …“), erkennt MusicBox das und fragt automatisch noch einmal.
-- **Berater erinnert sich wieder ans Gespräch:** Ab der zweiten Nachricht wurde der bisherige Verlauf nicht mitgeschickt (neues Nachrichtenformat im Programmfenster). Jetzt weiß Strata wieder, worüber ihr geredet habt – z. B. bei „mach ihn langsamer“.
-- Gilt genauso für den Songtext-Knopf
+- **Alle Zwischenspeicher liegen jetzt im Tool-Ordner** (`daten\cache`, `daten\tmp`) statt auf C::
+  - Kopien abgespielter Songs (Gradio), Windows-Temp von MusicBox und Musik-KI
+  - AMD-Kernel-Cache (MIOpen/Comgr), NVIDIA-Cache, PyTorch-/Hugging-Face-Cache
+  - Alte Temp-Dateien werden beim Start automatisch gelöscht
+- **Neu unter ⚙️ Einstellungen → 💾 Speicherplatz:** Systempartition auf Altlasten früherer Versionen prüfen und mit einem Klick löschen
+- Beim Deinstallieren werden auch die Zwischenspeicher entfernt

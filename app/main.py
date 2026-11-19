@@ -8,6 +8,8 @@ os.environ.setdefault("DO_NOT_TRACK", "1")
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from musicbox import config  # noqa: E402
+from musicbox import speicherorte  # noqa: E402
+speicherorte.umleiten()      # alle Zwischenspeicher in den Tool-Ordner statt auf C:
 
 # Ohne Konsolenfenster (pythonw) Ausgaben in eine Logdatei schreiben
 if sys.stdout is None or sys.stderr is None:

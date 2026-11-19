@@ -403,7 +403,9 @@ def launch_cmd(root):
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
     py = root / "python_embeded" / ("python.exe" if WIN else "python")
     cmd = [str(py), "-s", str(root / "ComfyUI" / "main.py"), *args, *extra, "--disable-auto-launch",
-           "--listen", "127.0.0.1", "--port", str(C.COMFY_PORT), "--output-directory", str(OUTPUT_DIR)]
+           "--listen", "127.0.0.1", "--port", str(C.COMFY_PORT), "--output-directory", str(OUTPUT_DIR),
+           "--temp-directory", str(C.DATA / "tmp" / "comfy")]
+    (C.DATA / "tmp" / "comfy").mkdir(parents=True, exist_ok=True)
     env.update({"MIOPEN_FIND_MODE": "FAST", "TOKENIZERS_PARALLELISM": "false", "PYTHONUTF8": "1",
                 "PYTHONIOENCODING": "utf-8"})
     return cmd, env

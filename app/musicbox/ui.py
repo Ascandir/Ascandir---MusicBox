@@ -615,6 +615,11 @@ def build():
                 s_comfy = gr.Textbox(label="Eigener ComfyUI-Ordner (leer = eingebaute Installation)",
                                      value=st.get("comfy_ordner", ""),
                                      placeholder=r"z. B. D:\KI\ComfyUI_windows_portable (Ordner mit python_embeded)")
+                gr.Markdown("### 💾 Speicherplatz")
+                spc_md = gr.Markdown(f"Alles (Modelle, Songs, Zwischenspeicher) liegt im Tool-Ordner `{C.ROOT}`.")
+                with gr.Row():
+                    spc_chk = gr.Button("🔍 Systempartition auf Altlasten prüfen")
+                    spc_del = gr.Button("🧹 Altlasten auf der Systempartition löschen")
                 with gr.Row():
                     inst_btn = gr.Button("⬇️ Musik-KI installieren / fehlende Modelle laden")
                     mstop_btn = gr.Button("⏹ Musik-KI jetzt beenden")
@@ -700,6 +705,10 @@ def build():
         lib_del.click(delete_song, lib, [lib, lib_audio, lib_md])
 
         dbg_btn.click(do_debug, None, [dbg_md, dbg_text, dbg_file])
+        from . import speicherorte as SP
+        spc_chk.click(SP.altlasten_bericht, None, spc_md)
+        spc_del.click(lambda: f"🧹 {SP.altlasten_loeschen() / 1e9:.2f} GB freigegeben.\n\n" + SP.altlasten_bericht(),
+                      None, spc_md)
         inst_btn.click(do_install_music, None, mus_md, concurrency_limit=1)
         mstop_btn.click(do_music_stop, None, mus_md)
         mref_btn.click(musik_status, None, mus_md)

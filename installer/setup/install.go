@@ -395,6 +395,8 @@ func Uninstall(root string, deleteData bool) {
 	os.RemoveAll(filepath.Join(root, "daten", "comfyui")) // Musik-KI samt Modellen (groß)
 	os.RemoveAll(filepath.Join(root, "daten", "comfy-output"))
 	os.RemoveAll(filepath.Join(root, "daten", "downloads"))
+	os.RemoveAll(filepath.Join(root, "daten", "cache")) // Zwischenspeicher (AMD-Kernel, PyTorch …)
+	os.RemoveAll(filepath.Join(root, "daten", "tmp"))
 	var c *exec.Cmd
 	if deleteData {
 		os.RemoveAll(filepath.Join(root, "daten"))
