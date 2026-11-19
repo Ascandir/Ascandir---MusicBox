@@ -6,6 +6,7 @@ Ablauf:
 Beim Verlassen wird die KI wieder beendet – aber nur, wenn das Tool sie selbst gestartet hat.
 """
 import json
+import re
 import os
 import shutil
 import subprocess
@@ -632,9 +633,45 @@ def strip_think(text):
     return text.strip()
 
 
+_LEAK = re.compile(r"(?i)^\s*(the user (wants|is asking|asked|has asked)|okay,? (so )?(the user|let me)|let me (think|analy[sz]e)|"
+                   r"we need to|i need to (write|respond|figure))")
+
+
+def text_of(content):
+    """Nachrichteninhalt als Text – auch wenn er als Liste von Teilen kommt (neues Gradio-Format)."""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, dict):
+        return str(content.get("text") or content.get("content") or "")
+    if isinstance(content, (list, tuple)):
+        return "\n".join(text_of(c) for c in content if c is not None).strip()
+    return "" if content is None else str(content)
+
+
 def chat(cl, model, messages, max_tokens=2500, temperature=0.7):
+    """Fragt die KI. Internes „Nachdenken“ wird abgeschaltet bzw. herausgefiltert; hängt sich das Modell in
+    englischem Nachdenken auf, wird einmal neu gefragt."""
     msgs = [dict(m) for m in messages]
-    if resolved_mode() == "Eingebaute KI" and msgs and msgs[-1]["role"] == "user":
-        msgs[-1]["content"] += "\n\n/no_think"     # Qwen3: ohne langes Nachdenken antworten
-    r = cl.chat.completions.create(model=model, temperature=temperature, max_tokens=max_tokens, messages=msgs)
-    return strip_think(r.choices[0].message.content or "")
+    if msgs and msgs[-1]["role"] == "user":
+        msgs[-1]["content"] += "\n\n/no_think"     # Qwen: ohne langes Nachdenken antworten
+    # llama.cpp-Server (Strata): Nachdenken aus, Nachdenk-Text getrennt liefern
+    extra = {"chat_template_kwargs": {"enable_thinking": False}, "reasoning_format": "deepseek"}
+    for attempt in (1, 2):
+        try:
+            r = cl.chat.completions.create(model=model, temperature=temperature, max_tokens=max_tokens,
+                                           messages=msgs, extra_body=extra)
+        except Exception as e:
+            if extra and attempt == 1 and "400" in str(e):     # Server kennt die Zusatzangaben nicht
+                extra = {}
+                continue
+            raise
+        raw = r.choices[0].message.content or ""
+        text = strip_think(raw)
+        log.info("KI-Antwort (%d Zeichen, Ende: %s): %s", len(raw), r.choices[0].finish_reason, raw[:300].replace("\n", " "))
+        if text and not _LEAK.match(text):
+            return text
+        log.info("KI-Antwort sieht nach internem Nachdenken aus – neuer Versuch")
+        msgs[-1]["content"] += ("\n\nAntworte direkt auf Deutsch, ohne Vorüberlegungen.")
+        temperature = min(temperature, 0.4)
+    raise RuntimeError("Strata hat keine brauchbare Antwort geliefert (es hat sich im „Nachdenken“ verheddert). "
+                       "Versuch es nochmal oder formulier die Nachricht etwas anders.")

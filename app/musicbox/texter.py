@@ -220,8 +220,9 @@ class Berater:
                 progress(0.98, "💬 Strata denkt nach …")
                 cl, model = L.client(url)
                 msgs = [{"role": "system", "content": berater_system(song)}] + \
-                       [{"role": m["role"], "content": m["content"]} for m in history[-24:]
-                        if m.get("role") in ("user", "assistant") and isinstance(m.get("content"), str)]
+                       [{"role": m["role"], "content": L.text_of(m.get("content"))} for m in history[-24:]
+                        if m.get("role") in ("user", "assistant") and L.text_of(m.get("content")).strip()
+                        and not L.text_of(m.get("content")).startswith("❌")]
                 ans = L.chat(cl, model, msgs, max_tokens=3000, temperature=0.7)
             except Exception:
                 self.stop()

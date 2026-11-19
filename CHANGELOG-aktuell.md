@@ -1,6 +1,5 @@
-## 🎵 MusicBox 0.2.0 – natürlichere Stimmen
+## 🎵 MusicBox 0.2.1
 
-- **Keine Übersteuerung mehr:** Der fertige Song wird wie im ACE-Step-Original auf −1 dB begrenzt. Vorher konnten laute Stellen (vor allem der Gesang) beim Speichern abgeschnitten werden – das klang verzerrt.
-- **Klangkorrektur wie im Original (DCW):** Die Turbo-Stufen (Schnell, Besser, Beste) rechnen jetzt mit der Wavelet-Korrektur, die ACE-Step selbst standardmäßig nutzt und die in ComfyUI fehlt. Sorgt für sauberere Details.
-- **Neu: 🎙️ Klang der Stimme** – Natürlich (ohne Autotune) · Leicht bearbeitet · Autotune. Auch der KI-Berater kann das einstellen.
-- Widersprüchliche Autotune-Angaben in der Stilbeschreibung werden automatisch entfernt
+- **KI-Berater antwortet wieder vernünftig:** Strata's internes „Nachdenken“ wird jetzt abgeschaltet. Verheddert es sich trotzdem darin (wirre englische Antwort wie „The user wants me to …“), erkennt MusicBox das und fragt automatisch noch einmal.
+- **Berater erinnert sich wieder ans Gespräch:** Ab der zweiten Nachricht wurde der bisherige Verlauf nicht mitgeschickt (neues Nachrichtenformat im Programmfenster). Jetzt weiß Strata wieder, worüber ihr geredet habt – z. B. bei „mach ihn langsamer“.
+- Gilt genauso für den Songtext-Knopf
